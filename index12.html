@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html lang="hu">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Szókereső Játék - Zene</title>
+    <style>
+        body { font-family: Arial, sans-serif; display: flex; flex-direction: column; align-items: center; }
+        .grid { display: none; grid-gap: 2px; margin-top: 10px; }
+        .cell { 
+            width: 30px; 
+            height: 30px; 
+            text-align: center; 
+            border: 1px solid black; 
+            cursor: pointer; 
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 16px;
+        }
+        .selected { background-color: green; color: white; }
+        .found { background-color: blue !important; color: white !important; }
+        .word-list { margin-top: 20px; }
+        .word-list .found { text-decoration: line-through; color: gray; }
+        #winMessage, #loseMessage { display: none; font-size: 20px; font-weight: bold; margin-top: 20px; }
+        #winMessage { color: green; }
+        #loseMessage { color: red; }
+        #timer { font-size: 24px; font-weight: bold; margin-top: 10px; }
+        .controls { display: flex; align-items: center; margin-top: 10px; gap: 10px; }
+        button { padding: 5px 10px; font-size: 16px; cursor: pointer; }
+        #newGameButton { background-color: red; color: white; font-weight: bold; border: none; padding: 10px 15px; margin-top: 10px; }
+    </style>
+</head>
+<body>
+    <h2>Szókereső Játék - Zene</h2>
+
+    <button id="startButton" onclick="startGame()">🎮 Kezdés</button>
+    <button id="resetButton" onclick="resetGame()" style="display:none;">Újra Kezdés</button>
+    <button id="newGameButton" onclick="restartGame()">🔄 Új Játék</button>
+
+    <div class="grid" id="grid"></div>
+    <div class="word-list">
+        <h3>Megtalálandó szavak:</h3>
+        <ul id="wordList"></ul>
+    </div>
+
+    <p id="winMessage">🎉Gratulálok, nyertél!🎉</p>
+    <p id="loseMessage">😞Sajnálom, nem nyertél!😞</p>
+
+    <script>
+        let timeLeft = 60;
+        let timerInterval = null;
+        let gameStarted = false;
+
+        function startGame() {
+            if (timerInterval) clearInterval(timerInterval);
+            gameStarted = true;
+            document.getElementById("grid").style.display = "grid";
+            document.getElementById("winMessage").style.display = "none";
+            document.getElementById("loseMessage").style.display = "none";
+            document.getElementById("resetButton").style.display = "inline-block";
+            document.getElementById("startButton").style.display = "none";
+
+            generateGrid();
+        }
+
+        const wordCategories = {
+            zenek: ["KUKÁSAUTÓ", "CSURRAN-CSEPPEN", "SHAPE", "PANNONIA", "KISLANY", "SZÉLCSEND", "ROLLIN", "MEGCSINÁLTAD", "SANDELA", "MILLIÓK", "NYUGODJ", "HIDEG", "CSAKASZESZ", "CSAVARGÓ", "PRIKEZSIA", "HOLD", "FÜTTYÖS", "BESZÉLIK", "RAJOSAN", "EZ-AZ-ÁRA", "SKIN", "SZÍVTIPRÓ", "LELE", "EGO", "BORNAK"]
+        };
+
+        let gridSize = 20; 
+        const grid = document.getElementById("grid");
+        const wordList = document.getElementById("wordList");
+        let words = [];
+        let selectedCells = [];
+        let foundWords = [];
+
+        function generateGrid() {
+            grid.innerHTML = "";
+            wordList.innerHTML = "";
+            grid.style.gridTemplateColumns = `repeat(${gridSize}, 30px)`;
+        
+            let letters = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+            let board = Array.from({ length: gridSize }, () => Array(gridSize).fill(null));
+
+            words = wordCategories["zenek"].sort(() => 0.5 - Math.random()).slice(0, 5);
+        
+            words.forEach(word => {
+                placeWord(word, board);
+            });
+        
+            for (let i = 0; i < gridSize; i++) {
+                for (let j = 0; j < gridSize; j++) {
+                    if (!board[i][j]) {
+                        board[i][j] = letters[Math.floor(Math.random() * letters.length)];
+                    }
+                    let cell = document.createElement("div");
+                    cell.classList.add("cell");
+                    cell.textContent = board[i][j];
+                    cell.dataset.row = i;
+                    cell.dataset.col = j;
+                    cell.addEventListener("click", () => selectCell(cell));
+                    grid.appendChild(cell);
+                }
+            }
+
+            words.forEach(word => {
+                let li = document.createElement("li");
+                li.textContent = word;
+                li.dataset.word = word;
+                wordList.appendChild(li);
+            });
+        }
+
+        function placeWord(word, board) {
+            let directions = [
+                { row: 0, col: 1 },  
+                { row: 1, col: 0 },  
+                { row: 1, col: 1 },  
+                { row: -1, col: 1 }  
+            ];
+
+            let attempts = 0;
+            while (attempts < 100) {
+                let direction = directions[Math.floor(Math.random() * directions.length)];
+                let row = Math.floor(Math.random() * gridSize);
+                let col = Math.floor(Math.random() * gridSize);
+
+                if (canPlaceWord(word, board, row, col, direction)) {
+                    for (let i = 0; i < word.length; i++) {
+                        board[row + i * direction.row][col + i * direction.col] = word[i];
+                    }
+                    return true;
+                }
+                attempts++;
+            }
+            return false;
+        }
+
+        function canPlaceWord(word, board, row, col, direction) {
+            for (let i = 0; i < word.length; i++) {
+                let newRow = row + i * direction.row;
+                let newCol = col + i * direction.col;
+                if (newRow < 0 || newRow >= gridSize || newCol < 0 || newCol >= gridSize || 
+                    (board[newRow][newCol] && board[newRow][newCol] !== word[i])) {
+                    return false;
+                }
+            }
+            return true;
+        }
+
+        function selectCell(cell) {
+            if (!gameStarted) return;
+
+            if (cell.classList.contains("found")) return;
+
+            if (selectedCells.includes(cell)) {
+                cell.classList.remove("selected");
+                selectedCells = selectedCells.filter(c => c !== cell);
+            } else {
+                cell.classList.add("selected");
+                selectedCells.push(cell);
+            }
+
+            const foundWord = checkSelectedWord();
+            if (foundWord.length > 0) {
+                foundWord.forEach(cell => cell.classList.add("found"));
+                updateWordList();
+                selectedCells = [];
+            }
+        }
+
+        function playMusic(word) {
+            let audio = new Audio(word + ".mp3");
+            audio.play();
+        }
+
+        function checkSelectedWord() {
+            const selectedText = selectedCells.map(cell => cell.textContent).join("");
+            if (words.includes(selectedText) && !foundWords.includes(selectedText)) {
+                foundWords.push(selectedText);
+                playMusic(selectedText);
+                return selectedCells;
+            }
+            return [];
+        }
+
+
+        function updateWordList() {
+            const liList = wordList.children;
+            for (let li of liList) {
+                if (foundWords.includes(li.dataset.word)) {
+                    li.classList.add("found");
+                }
+            }
+        }
+
+        function restartGame() {
+            location.reload();
+        }
+
+        function resetGame() {
+            startGame();
+        }
+    </script>
+</body>
+</html>
